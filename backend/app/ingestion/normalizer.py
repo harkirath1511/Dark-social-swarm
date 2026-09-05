@@ -43,11 +43,11 @@ def normalize_submission(raw_post: Any) -> RedditPostEvent:
     """
     if isinstance(raw_post, dict):
         thread_id = str(raw_post.get("thread_id") or raw_post.get("id", ""))
-        if not thread_id.startswith("t3_") and thread_id:
+        if not thread_id.startswith("t3_") and not thread_id.startswith("hn_") and thread_id:
             thread_id = f"t3_{thread_id}"
         
         subreddit = raw_post.get("subreddit", "")
-        if not subreddit.startswith("r/"):
+        if not subreddit.startswith("r/") and not ("ycombinator" in subreddit or subreddit == "Ask HN"):
             subreddit = f"r/{subreddit}"
 
         permalink = raw_post.get("permalink", "")

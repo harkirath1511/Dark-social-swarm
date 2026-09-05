@@ -319,6 +319,72 @@ async def simulate_ingest_thread(
     }
 
 
+@router.post("/ingest/hn")
+async def ingest_live_hn_discussions(
+    limit: int = Query(default=3, ge=1, le=10, description="Number of live HN posts to fetch and process"),
+    graph=Depends(get_graph),
+):
+    """
+    Fetches real live Ask HN discussions from Hacker News (Algolia API),
+    injects them into SQLite, and processes them through the Swarm multi-agent pipeline.
+    """
+    from app.ingestion.hn_listener import fetch_hn_posts
+    import time
+
+    posts = await fetch_hn_posts(query="tool OR alternative OR software OR recommend OR workflow", tags="ask_hn", limit=limit)
+    if not posts:
+        posts = await fetch_hn_posts(tags="ask_hn", limit=limit)
+
+    results = []
+    for post in posts:
+        discovery_passed, discovery_score = evaluate_candidate_discovery(f"{post.title}\n{post.body}")
+        await save_raw_post(
+            thread_id=post.thread_id,
+            subreddit=post.subreddit,
+            community_id=post.subreddit,
+            title=post.title,
+            body=post.body,
+            author=post.author,
+            permalink=post.permalink,
+            created_utc=post.created_utc or time.time(),
+            discovery_score=discovery_score,
+            discovery_passed=discovery_passed,
+        )
+
+        initial_state: SwarmState = {
+            "platform": "hackernews",
+            "thread_id": post.thread_id,
+            "community_id": post.subreddit,
+            "subreddit": post.subreddit,
+            "title": post.title,
+            "body": post.body,
+            "author": post.author,
+            "permalink": post.permalink,
+            "discovery_score": discovery_score,
+            "discovery_passed": discovery_passed,
+        }
+
+        config = {"configurable": {"thread_id": post.thread_id}}
+        try:
+            await graph.ainvoke(initial_state, config=config)
+        except Exception as e:
+            logger.error(f"Error executing graph for {post.thread_id}: {e}")
+
+        processed = await get_opportunity(post.thread_id)
+        if processed:
+            await ws_manager.broadcast({
+                "type": "NEW_OPPORTUNITY_INGESTED",
+                "data": processed,
+            })
+            results.append(processed)
+
+    return {
+        "status": "success",
+        "ingested_count": len(results),
+        "opportunities": results,
+    }
+
+
 @router.websocket("/ws/stream")
 async def websocket_stream(websocket: WebSocket):
     """WebSocket endpoint broadcasting real-time ingestion & triage updates."""
