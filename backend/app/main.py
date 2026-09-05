@@ -68,6 +68,8 @@ async def queue_consumer_worker():
                 })
 
             ingestion_queue.task_done()
+            # Polite pacing between thread evaluations to respect free-tier LLM rate limits
+            await asyncio.sleep(2)
 
         except asyncio.CancelledError:
             logger.info("Queue consumer worker cancelled.")
