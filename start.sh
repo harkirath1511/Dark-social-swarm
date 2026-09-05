@@ -37,6 +37,19 @@ fi
 
 echo "Using Python: $PYTHON_BIN"
 
+# Helper to ensure ports are freed before launching & on exit
+free_port() {
+    local port=$1
+    if command -v powershell.exe &> /dev/null; then
+        powershell.exe -NoProfile -Command "
+            Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue |
+            ForEach-Object { Stop-Process -Id \$_.OwningProcess -Force -ErrorAction SilentlyContinue }
+        " 2>/dev/null || true
+    elif command -v fuser &> /dev/null; then
+        fuser -k "${port}/tcp" 2>/dev/null || true
+    fi
+}
+
 # 3. Cleanup handler
 cleanup() {
     echo ""
@@ -49,11 +62,17 @@ cleanup() {
     if [ -n "$FRONTEND_PID" ]; then
         kill "$FRONTEND_PID" 2>/dev/null || true
     fi
+    free_port 8000
+    free_port 3000
     echo "All services stopped."
     exit 0
 }
 
 trap cleanup SIGINT SIGTERM EXIT
+
+# Ensure ports 8000 and 3000 are not locked before starting
+free_port 8000
+free_port 3000
 
 # 4. Start Backend (FastAPI on :8000)
 echo "Starting Backend on http://localhost:8000..."

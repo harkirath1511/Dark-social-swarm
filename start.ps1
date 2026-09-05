@@ -21,6 +21,11 @@ if (-not (Test-Path $pythonExe)) {
     $pythonExe = "python"
 }
 
+# 2.5 Ensure ports are clear before starting
+Get-NetTCPConnection -LocalPort 8000, 3000 -ErrorAction SilentlyContinue | ForEach-Object {
+    Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+}
+
 # 3. Start Backend & Frontend as background jobs or processes
 Write-Host "Starting Backend on http://localhost:8000..." -ForegroundColor Green
 $backendProcess = Start-Process -FilePath $pythonExe -ArgumentList "-m uvicorn app.main:app --host 0.0.0.0 --port 8000" -WorkingDirectory "$rootDir\backend" -PassThru
@@ -43,5 +48,8 @@ try {
     Write-Host "Shutting down servers..." -ForegroundColor Yellow
     Stop-Process -Id $backendProcess.Id -Force -ErrorAction SilentlyContinue
     Stop-Process -Id $frontendProcess.Id -Force -ErrorAction SilentlyContinue
+    Get-NetTCPConnection -LocalPort 8000, 3000 -ErrorAction SilentlyContinue | ForEach-Object {
+        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+    }
     Write-Host "All servers stopped." -ForegroundColor Green
 }
