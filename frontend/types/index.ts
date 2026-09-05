@@ -9,8 +9,17 @@ export type OpportunityStatus =
 
 export type EngagementVerdict = 'engage' | 'maybe_engage' | 'do_not_engage';
 
+export type RejectionReason = 
+  | 'wrong_community'
+  | 'too_promotional'
+  | 'low_intent'
+  | 'unsafe_topic'
+  | 'not_relevant'
+  | 'poor_evidence';
+
 export interface RedditPost {
   thread_id: string;
+  community_id?: string;
   subreddit: string;
   title: string;
   body: string;
@@ -21,13 +30,31 @@ export interface RedditPost {
 
 export interface AnalystOutput {
   core_problem: string;
-  buying_intent: 'high' | 'medium' | 'low' | 'informational';
+  pain_point?: string;
+  user_goal?: string;
+  conversation_context?: string;
+  community_context?: string;
+  buying_intent: string;
+  sentiment?: string;
+  entities?: string[];
+  brand_mentioned?: boolean;
+  competitor_mentioned?: boolean;
+  mentioned_brands?: string[];
+  mentioned_competitors?: string[];
   evidence_quote: string;
+  evidence?: string[];
+  analyst_confidence?: number;
 }
 
 export interface StrategistOutput {
   opportunity_score: number;
-  brand_risk: 'low' | 'medium' | 'high';
+  relevance_score?: number;
+  intent_strength_score?: number;
+  community_fit_score?: number;
+  credibility_score?: number;
+  engagement_risk_score?: number;
+  strategist_confidence?: number;
+  brand_risk?: string;
   verdict: EngagementVerdict;
   reasoning: string;
 }
@@ -46,6 +73,8 @@ export interface Opportunity {
   draft_content: string;
   critic_output: CriticOutput;
   status: OpportunityStatus;
+  sensitive_topic?: boolean;
+  sensitive_topic_reason?: string | null;
   iteration_count: number;
   created_at: string;
 }

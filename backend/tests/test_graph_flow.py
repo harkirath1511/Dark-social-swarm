@@ -31,7 +31,7 @@ async def test_critic_guardrails_detection():
     res1 = programmatic_guardrails_check(dirty_draft_link)
     assert res1 is not None
     assert res1.critic_passed is False
-    assert res1.violation_category == "unsolicited_promotion"
+    assert res1.violation_category == "excessive_promotion"
     assert "URL" in res1.critic_feedback
 
     # 2. Aggressive sales CTA violation
@@ -39,7 +39,7 @@ async def test_critic_guardrails_detection():
     res2 = programmatic_guardrails_check(dirty_draft_cta)
     assert res2 is not None
     assert res2.critic_passed is False
-    assert res2.violation_category == "aggressive_cta"
+    assert res2.violation_category == "excessive_promotion"
 
     # 3. Clean value-first reply passes
     clean_draft = (
@@ -51,14 +51,24 @@ async def test_critic_guardrails_detection():
 
 
 def test_conditional_routing_logic():
-    """Verify routing decisions after Strategist and Critic."""
+    """Verify routing decisions after Strategist, Sensitive Gate, and Critic."""
+    from app.swarm.graph import route_after_sensitive_gate
+
     # Strategist: Low score (< 40) drops to END
     low_state: SwarmState = {"opportunity_score": 25, "engagement_decision": "do_not_engage"}
     assert route_after_strategist(low_state) == "__end__"
 
-    # Strategist: High score (>= 40) proceeds to Drafter
+    # Strategist: High score (>= 40) proceeds to Sensitive Gate
     high_state: SwarmState = {"opportunity_score": 85, "engagement_decision": "engage"}
-    assert route_after_strategist(high_state) == "drafter"
+    assert route_after_strategist(high_state) == "sensitive_gate"
+
+    # Sensitive Gate: Normal topic proceeds to Drafter
+    normal_state: SwarmState = {"sensitive_topic": False}
+    assert route_after_sensitive_gate(normal_state) == "drafter"
+
+    # Sensitive Gate: Sensitive topic bypasses Drafter and routes straight to Human Review
+    sensitive_state: SwarmState = {"sensitive_topic": True}
+    assert route_after_sensitive_gate(sensitive_state) == "human_review"
 
     # Critic: Failed and iteration < 2 loops back to Drafter
     fail_state: SwarmState = {"critic_passed": False, "draft_iteration": 1}
@@ -131,7 +141,7 @@ async def test_graph_interrupt_and_resume_flow():
     # Stage 1: Analyst output verified
     assert "extracted_problem" in state_snapshot.values
     assert len(state_snapshot.values["extracted_problem"]) > 0
-    assert state_snapshot.values["user_intent"] in ("high", "medium")
+    assert state_snapshot.values["user_intent"] in ("recommendation_seeking", "alternative_seeking", "high", "medium")
     assert len(state_snapshot.values["evidence_quote"]) > 0
 
     # Stage 2: Strategist output verified

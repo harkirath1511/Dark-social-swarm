@@ -28,8 +28,11 @@ class Settings(BaseSettings):
     # LLM Settings
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API Key")
     ANTHROPIC_API_KEY: str = Field(default="", description="Anthropic API Key")
+    GROQ_API_KEY: str = Field(default="", description="Groq API Key (Free high-speed Llama-3)")
     DEFAULT_LLM_MODEL: str = "gpt-4o-mini"
     REASONING_LLM_MODEL: str = "gpt-4o"
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    LLM_PROVIDER: str = "auto"  # "auto", "groq", "openai", "anthropic"
 
     # Reddit Ingestion (PRAW)
     REDDIT_CLIENT_ID: str = Field(default="", description="PRAW Reddit Client ID")

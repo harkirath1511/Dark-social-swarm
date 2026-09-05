@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Copy, Edit3, X, Loader2, Sparkles, Send, MessageSquare } from 'lucide-react';
+import { Check, Copy, Edit3, X, Loader2, Sparkles, Send, ShieldAlert } from 'lucide-react';
+import { RejectionReason } from '../types';
 
 interface ActionPanelProps {
   opportunityId: string;
@@ -9,9 +10,42 @@ interface ActionPanelProps {
   onToggleEdit: () => void;
   onApproveAndCopy: () => Promise<void>;
   onApplyEdits: () => Promise<void>;
-  onReject: (reason: string) => Promise<void>;
+  onReject: (reason: RejectionReason) => Promise<void>;
   disabled?: boolean;
 }
+
+const REJECTION_REASONS: { value: RejectionReason; label: string; description: string }[] = [
+  {
+    value: 'wrong_community',
+    label: 'Wrong Community',
+    description: 'Norm violation, extreme anti-promo culture, or unsuitable subreddit.',
+  },
+  {
+    value: 'too_promotional',
+    label: 'Too Promotional',
+    description: 'Context would interpret any response as unsolicited advertising.',
+  },
+  {
+    value: 'low_intent',
+    label: 'Low Intent',
+    description: 'Casual opinion, rant, or theoretical chatter with zero solution urgency.',
+  },
+  {
+    value: 'unsafe_topic',
+    label: 'Unsafe Topic',
+    description: 'Sensitive personal, legal, medical, crisis, or toxic discussion.',
+  },
+  {
+    value: 'not_relevant',
+    label: 'Not Relevant',
+    description: 'Problem lies outside our solution domain or technical capabilities.',
+  },
+  {
+    value: 'poor_evidence',
+    label: 'Poor Evidence',
+    description: 'Vague post without verifiable struggle or observable context quotes.',
+  },
+];
 
 export const ActionPanel: React.FC<ActionPanelProps> = ({
   opportunityId,
@@ -24,8 +58,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
 }) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectReason, setRejectReason] = useState('Low commercial intent');
-  const [customReason, setCustomReason] = useState('');
+  const [selectedReason, setSelectedReason] = useState<RejectionReason>('low_intent');
 
   const handleAction = async (actionName: string, actionFn: () => Promise<void>) => {
     try {
@@ -37,9 +70,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
   };
 
   const handleConfirmReject = async () => {
-    const finalReason = rejectReason === 'Other' ? customReason || 'Discarded by marketer' : rejectReason;
     setShowRejectModal(false);
-    await handleAction('reject', () => onReject(finalReason));
+    await handleAction('reject', () => onReject(selectedReason));
   };
 
   return (
@@ -48,7 +80,9 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         {/* State Notice */}
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-          <span>LangGraph <code className="text-slate-300 font-mono text-[11px] bg-dark-850 px-1.5 py-0.5 rounded border border-slate-800">interrupt()</code> state</span>
+          <span>
+            LangGraph <code className="text-slate-300 font-mono text-[11px] bg-dark-850 px-1.5 py-0.5 rounded border border-slate-800">interrupt()</code> review gate
+          </span>
         </div>
 
         {/* Action Buttons */}
@@ -59,7 +93,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
             disabled={disabled || loadingAction !== null}
             onClick={() => setShowRejectModal(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-900/40 bg-red-950/20 text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors text-xs font-semibold disabled:opacity-50"
-            title="Log rejection reason and discard opportunity"
+            title="Select structured calibration reason and discard"
           >
             {loadingAction === 'reject' ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -117,39 +151,44 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         </div>
       </div>
 
-      {/* Reject Reason Modal / Feedback Flyout */}
+      {/* Reject Reason Modal / Structured Feedback Flyout */}
       {showRejectModal && (
-        <div className="mt-4 p-4 rounded-xl bg-dark-950 border border-red-900/40 text-xs">
-          <span className="font-bold text-red-400 block mb-1.5">
-            Log Rejection Reason (Calibrates Strategist Agent)
-          </span>
-          <p className="text-slate-400 mb-2">
-            Select why this opportunity should not be engaged to tune future scoring weights:
+        <div className="mt-4 p-4 rounded-xl bg-dark-950 border border-red-900/50 text-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 text-red-400 font-bold mb-1">
+            <ShieldAlert className="w-4 h-4" />
+            <span>Structured Triage Rejection (Calibrates Strategist Node)</span>
+          </div>
+          <p className="text-slate-400 mb-3 leading-relaxed">
+            Select the structured reason for rejecting this opportunity. This telemetry tunes the Strategist agent's 6D scoring weights:
           </p>
 
-          <select
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            className="w-full bg-dark-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-red-500"
-          >
-            <option value="Low commercial intent">Low commercial intent / casual discussion</option>
-            <option value="High promotional blowback risk">High promotional blowback risk in subreddit</option>
-            <option value="Off-topic or irrelevant product fit">Off-topic or irrelevant product fit</option>
-            <option value="Deceptive or spam post">Deceptive or spam post</option>
-            <option value="Other">Other custom reason</option>
-          </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+            {REJECTION_REASONS.map((r) => (
+              <label
+                key={r.value}
+                className={`p-2.5 rounded-lg border cursor-pointer transition-all flex flex-col justify-start ${
+                  selectedReason === r.value
+                    ? 'border-red-500 bg-red-950/40 text-white'
+                    : 'border-slate-800 bg-dark-900 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <input
+                    type="radio"
+                    name={`reject-${opportunityId}`}
+                    value={r.value}
+                    checked={selectedReason === r.value}
+                    onChange={() => setSelectedReason(r.value)}
+                    className="accent-red-500 w-3.5 h-3.5"
+                  />
+                  <span className="font-semibold text-xs">{r.label}</span>
+                </div>
+                <span className="text-[10px] text-slate-400 pl-5.5 leading-snug">{r.description}</span>
+              </label>
+            ))}
+          </div>
 
-          {rejectReason === 'Other' && (
-            <input
-              type="text"
-              value={customReason}
-              onChange={(e) => setCustomReason(e.target.value)}
-              placeholder="Enter custom rejection reason..."
-              className="w-full bg-dark-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-red-500"
-            />
-          )}
-
-          <div className="flex items-center justify-end gap-2 mt-2">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
             <button
               type="button"
               onClick={() => setShowRejectModal(false)}
@@ -160,9 +199,9 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
             <button
               type="button"
               onClick={handleConfirmReject}
-              className="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold shadow-md shadow-red-600/30"
+              className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-xs shadow-md shadow-red-600/30 transition-all"
             >
-              Confirm Rejection
+              Confirm Structured Rejection
             </button>
           </div>
         </div>
