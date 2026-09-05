@@ -6,6 +6,7 @@ const baseUrl = `http://127.0.0.1:${port}`;
 const server = spawn('./node_modules/.bin/next', ['dev', '-p', String(port)], {
   cwd: process.cwd(),
   stdio: ['ignore', 'pipe', 'pipe'],
+  detached: true,
 });
 
 let output = '';
@@ -17,7 +18,8 @@ async function waitForHomepage() {
   while (Date.now() < deadline) {
     try {
       const response = await fetch(baseUrl);
-      return response.text();
+      const html = await response.text();
+      if (response.ok && html.includes('<main')) return html;
     } catch {
       // The server is still compiling or starting.
     }
@@ -29,10 +31,13 @@ async function waitForHomepage() {
 try {
   const html = await waitForHomepage();
   const visibleText = html.replace(/<[^>]+>/g, ' ');
-  assert.match(visibleText, /Find the conversations that\s+move your market/i);
+  assert.match(visibleText, /See intent\s+before\s+it becomes a lead/i);
   assert.match(html, /href="\/review"/);
   assert.match(html, /3 signals ready for human review/i);
   assert.match(html, /aria-label="Global community signal map"/);
+  assert.match(visibleText, /Community signal network/i);
+  assert.match(visibleText, /How the swarm works/i);
+  assert.match(visibleText, /Built for human judgment/i);
   console.log('[PASS] Homepage exposes the signal-intelligence CTA and review status.');
 } catch (error) {
   console.error(error);
@@ -41,7 +46,7 @@ try {
   if (server.exitCode === null) {
     await new Promise((resolve) => {
       server.once('exit', resolve);
-      server.kill('SIGTERM');
+      process.kill(-server.pid, 'SIGTERM');
     });
   }
 }

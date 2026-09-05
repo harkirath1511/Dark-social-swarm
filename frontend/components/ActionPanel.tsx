@@ -75,7 +75,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
   };
 
   return (
-    <div className="pt-4 border-t border-slate-800/80 mt-5">
+    <div className="pt-5 border-t border-slate-800/80 mt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* State Notice */}
         <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -86,7 +86,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Button 3: Reject / Discard */}
           <button
             type="button"

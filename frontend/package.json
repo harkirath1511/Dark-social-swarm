@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "npm run test:homepage && node tests/test_ui_flow.mjs",
+    "test": "npm run test:api-proxy && npm run test:homepage && node tests/test_ui_flow.mjs",
+    "test:api-proxy": "node tests/test_api_proxy.mjs",
     "test:homepage": "node tests/test_homepage.mjs"
   },
   "dependencies": {

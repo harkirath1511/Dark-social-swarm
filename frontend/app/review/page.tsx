@@ -6,23 +6,24 @@ import { OpportunityCard } from '../../components/OpportunityCard';
 import { LiveStreamFeed } from '../../components/LiveStreamFeed';
 import { Opportunity, IngestedPost } from '../../types';
 import { INITIAL_OPPORTUNITIES, INITIAL_LIVE_POSTS } from '../../lib/mock-data';
-import { CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { getFeed, getReviewQueue, ingestCustom, submitReview } from '../../lib/api';
+import { DashboardMetric } from '../../components/DashboardMetric';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { Activity, CheckCircle2, Clock3, RadioTower, RefreshCw, ShieldCheck } from 'lucide-react';
 
 export default function MarketerReviewDesk() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>(INITIAL_OPPORTUNITIES);
   const [livePosts, setLivePosts] = useState<IngestedPost[]>(INITIAL_LIVE_POSTS);
   const [approvedCount, setApprovedCount] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   // Fetch pending review queue from backend
   const fetchReviewQueue = async () => {
     try {
       setIsRefreshing(true);
-      const res = await fetch(`${API_BASE}/api/review-queue`);
-      if (res.ok) {
-        const data = await res.json();
+      {
+        const data = await getReviewQueue();
         const list = data.queue || data.opportunities;
         if (list && list.length > 0) {
           const mapped: Opportunity[] = list.map((row: any) => {
@@ -98,9 +99,8 @@ export default function MarketerReviewDesk() {
       }
 
       // Also sync community feed
-      const feedRes = await fetch(`${API_BASE}/api/feed?limit=25`);
-      if (feedRes.ok) {
-        const feedData = await feedRes.json();
+      {
+        const feedData = await getFeed();
         if (feedData.items && feedData.items.length > 0) {
           const mappedFeed: IngestedPost[] = feedData.items.map((item: any) => ({
             thread_id: item.thread_id,
@@ -133,15 +133,7 @@ export default function MarketerReviewDesk() {
     rejectionReason?: any
   ) => {
     try {
-      await fetch(`${API_BASE}/api/review/${threadId}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          edited_text: action === 'edited' ? text : undefined,
-          rejection_reason: action === 'rejected' ? rejectionReason : undefined,
-        }),
-      });
+      await submitReview(threadId, action, text, rejectionReason);
     } catch (err) {
       console.log('Resumed via local reactive state.');
     }
@@ -163,14 +155,8 @@ export default function MarketerReviewDesk() {
   // Handle Quick Simulation Injection
   const handleSimulateIngest = async (title: string, body: string, subreddit: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/ingest/simulate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, body, subreddit }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
+      {
+        const data = await ingestCustom(title, body, subreddit);
         const opp = data.opportunity;
         if (opp) {
           const newPost: IngestedPost = {
@@ -280,41 +266,42 @@ export default function MarketerReviewDesk() {
   const pendingOpportunities = opportunities.filter((o) => o.status === 'AWAITING_APPROVAL');
 
   return (
-    <div className="min-h-screen bg-dark-950 flex flex-col font-sans">
+    <div className="command-center min-h-screen flex flex-col font-sans">
       <Navbar pendingCount={pendingOpportunities.length} approvedCount={approvedCount} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+      <main className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10 flex-1 w-full relative z-10">
         {/* Desk Header Info */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <motion.div initial={reduceMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-end justify-between gap-5 mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-              Marketer Review Desk
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                HITL Required
-              </span>
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Pausing automatically at LangGraph <code className="text-indigo-300 font-mono text-xs">interrupt()</code> nodes. Review and authorize drafted replies before publication.
-            </p>
+            <p className="dash-eyebrow"><RadioTower className="h-3.5 w-3.5" aria-hidden="true" />Live operations</p>
+            <h1 className="text-3xl sm:text-5xl font-bold tracking-[-0.045em] text-white">Signal review center</h1>
+            <p className="text-sm text-slate-400 mt-3 max-w-2xl leading-6">Inspect evidence, validate agent reasoning, and authorize every response before it reaches a community.</p>
           </div>
 
           <button
             type="button"
             onClick={fetchReviewQueue}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-dark-850 hover:bg-dark-800 border border-slate-700 text-slate-300 text-xs font-medium transition-colors"
+            className="dash-refresh"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh Queue
           </button>
-        </div>
+        </motion.div>
+
+        <motion.section aria-label="System overview" className="dash-metrics" initial={reduceMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .08 }}>
+          <DashboardMetric icon={Clock3} label="Awaiting review" value={pendingOpportunities.length} detail="Human decision required" tone="amber" />
+          <DashboardMetric icon={Activity} label="Signals screened" value={livePosts.length} detail="Current feed window" tone="cyan" />
+          <DashboardMetric icon={CheckCircle2} label="Authorized" value={approvedCount} detail="Approved this session" tone="green" />
+          <DashboardMetric icon={ShieldCheck} label="Autoposted" value="0" detail="Safety gate enforced" tone="violet" />
+        </motion.section>
 
         {/* 2-Column Grid: Review Queue & Live Community Stream */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* Main Triage Feed (8 cols) */}
-          <div className="lg:col-span-8 space-y-6">
+          <section className="xl:col-span-8 space-y-5" aria-labelledby="queue-heading">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <h2 id="queue-heading" className="text-sm font-bold text-white uppercase tracking-[.12em] flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-indigo-400" />
                 Opportunities Awaiting Human Authorization ({pendingOpportunities.length})
               </h2>
@@ -331,23 +318,17 @@ export default function MarketerReviewDesk() {
                 </p>
               </div>
             ) : (
-              pendingOpportunities.map((opp) => (
-                <OpportunityCard
-                  key={opp.id}
-                  opportunity={opp}
-                  onActionComplete={handleActionComplete}
-                />
-              ))
+              <AnimatePresence initial={false}>{pendingOpportunities.map((opp, index) => <motion.div key={opp.id} initial={reduceMotion ? false : { opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: .98 }} transition={{ delay: reduceMotion ? 0 : index * .05 }}><OpportunityCard opportunity={opp} onActionComplete={handleActionComplete} /></motion.div>)}</AnimatePresence>
             )}
-          </div>
+          </section>
 
           {/* Live Ingestion Feed Sidebar (4 cols) */}
-          <div className="lg:col-span-4 sticky top-24">
+          <aside className="xl:col-span-4 xl:sticky xl:top-24">
             <LiveStreamFeed
               posts={livePosts}
               onSimulateIngest={handleSimulateIngest}
             />
-          </div>
+          </aside>
         </div>
       </main>
     </div>

@@ -94,7 +94,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
 
   if (isResolved) {
     return (
-      <div className="bg-dark-900/60 border border-slate-800/80 rounded-2xl p-6 text-center text-slate-400 transition-all duration-300">
+      <div className="dash-card border border-emerald-500/20 rounded-2xl p-6 text-center text-slate-400 transition-all duration-300">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-dark-850 border border-slate-700 text-slate-300 mb-2">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
           {resolvedStatus}
@@ -107,7 +107,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   }
 
   return (
-    <div className="bg-dark-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-6 transition-all duration-200 shadow-xl shadow-black/40 relative">
+    <article className="dash-card dash-opportunity border border-slate-800/80 hover:border-cyan-400/30 rounded-2xl p-5 sm:p-6 transition-all duration-200 relative">
       {/* Toast Notification */}
       {copiedToast && (
         <div className="absolute top-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold shadow-lg animate-bounce">
@@ -382,6 +382,6 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         onApplyEdits={handleApplyEdits}
         onReject={handleReject}
       />
-    </div>
+    </article>
   );
 };
