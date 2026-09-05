@@ -63,6 +63,30 @@ COMMUNITY_NORMS: Dict[str, Dict[str, Any]] = {
         "fit_modifier": 0.9,
         "risk_modifier": 1.0,
     },
+    "news.ycombinator.com": {
+        "scrutiny_level": "extreme",
+        "promo_tolerance": "zero_tolerance",
+        "description": "Y Combinator Hacker News community. Highly technical engineers, founders, and CTOs. Highly allergic to marketing buzzwords, pitch decks, or artificial hype. Receptive to candid, technically rigorous, intellectually honest peer advice.",
+        "recommended_approach": "Answer directly and concisely. Provide architecture or workflow steps first. Never use promotional links or sales language.",
+        "fit_modifier": 1.0,
+        "risk_modifier": 1.1,
+    },
+    "Ask HN": {
+        "scrutiny_level": "extreme",
+        "promo_tolerance": "zero_tolerance",
+        "description": "Ask Hacker News community. Founders and developers seeking recommendations, tool alternatives, and technical workflow solutions.",
+        "recommended_approach": "Answer directly in the first sentence. Explain architectural trade-offs honestly without promotional bias.",
+        "fit_modifier": 1.0,
+        "risk_modifier": 1.1,
+    },
+    "r/hackernews": {
+        "scrutiny_level": "extreme",
+        "promo_tolerance": "zero_tolerance",
+        "description": "Hacker News discussion hub.",
+        "recommended_approach": "Intellectually honest, direct technical insights.",
+        "fit_modifier": 1.0,
+        "risk_modifier": 1.1,
+    },
 }
 
 DEFAULT_COMMUNITY_NORM: Dict[str, Any] = {
@@ -80,7 +104,7 @@ def normalize_community_id(community_id: str) -> str:
     if not community_id:
         return "r/general"
     clean = community_id.strip()
-    if clean.startswith("r/") or clean.startswith("#"):
+    if clean.startswith("r/") or clean.startswith("#") or "ycombinator" in clean or clean == "Ask HN":
         return clean
     return f"r/{clean}"
 

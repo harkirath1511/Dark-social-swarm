@@ -99,9 +99,25 @@ class RedditListener:
                 yield event
             await asyncio.sleep(0.5)
 
-        # Then periodically wait to simulate a live listening stream
+        # Stream live Hacker News discussions periodically (100% Free, real URLs)
+        from app.ingestion.hn_listener import fetch_hn_posts
+        seen_ids = {f"t3_{p['id']}" for p in SYNTHETIC_POSTS}
         while self._running:
-            await asyncio.sleep(60)
+            try:
+                live_posts = await fetch_hn_posts(query="tool OR alternative OR software OR workflow", tags="ask_hn", limit=5)
+                if not live_posts:
+                    live_posts = await fetch_hn_posts(tags="ask_hn", limit=5)
+                for post in live_posts:
+                    if not self._running:
+                        break
+                    if post.thread_id not in seen_ids:
+                        seen_ids.add(post.thread_id)
+                        logger.info(f"Discovered live Hacker News thread: '{post.title[:50]}...' -> {post.permalink}")
+                        yield post
+                        await asyncio.sleep(4.0)
+            except Exception as e:
+                logger.warning(f"Live Hacker News stream poll error: {e}")
+            await asyncio.sleep(45)
 
     async def _live_stream(self, reddit: praw.Reddit) -> AsyncGenerator[RedditPostEvent, None]:
         """Streams live submissions across configured subreddits."""
