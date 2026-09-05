@@ -60,8 +60,8 @@ CREATE TABLE IF NOT EXISTS opportunities (
     human_status TEXT DEFAULT NULL,
     rejection_reason TEXT DEFAULT NULL,
     final_response_text TEXT DEFAULT NULL,
-    discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    discovered_at TIMESTAMP DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TIMESTAMP DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities(status);
@@ -151,10 +151,10 @@ async def save_raw_post(
     INSERT INTO opportunities (
         platform, thread_id, community_id, subreddit, title, body, author, permalink, created_utc,
         discovery_score, discovery_passed, status, discovered_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DISCOVERED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DISCOVERED', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     ON CONFLICT(thread_id) DO UPDATE SET
         status = 'DISCOVERED',
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
     RETURNING *;
     """
     async with get_db() as db:
@@ -173,7 +173,7 @@ async def update_opportunity_status(thread_id: str, status: str) -> None:
     """Update lifecycle status of an opportunity."""
     query = """
     UPDATE opportunities
-    SET status = ?, updated_at = CURRENT_TIMESTAMP
+    SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
     WHERE thread_id = ?;
     """
     async with get_db() as db:
@@ -213,7 +213,7 @@ async def update_analyst_signals(
         brand_mentioned = ?, competitor_mentioned = ?,
         mentioned_brands = ?, mentioned_competitors = ?,
         evidence = ?, analyst_confidence = ?,
-        status = 'PROCESSING', updated_at = CURRENT_TIMESTAMP
+        status = 'PROCESSING', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
     WHERE thread_id = ?;
     """
     async with get_db() as db:
@@ -251,7 +251,7 @@ async def update_strategist_decision(
     SET opportunity_score = ?, engagement_decision = ?, strategic_reasoning = ?,
         relevance_score = ?, intent_strength_score = ?, community_fit_score = ?,
         credibility_score = ?, engagement_risk_score = ?, strategist_confidence = ?,
-        status = ?, updated_at = CURRENT_TIMESTAMP
+        status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
     WHERE thread_id = ?;
     """
     async with get_db() as db:
@@ -276,7 +276,7 @@ async def update_sensitive_topic(
     """Flag opportunity as sensitive topic bypassing automated drafting."""
     query = """
     UPDATE opportunities
-    SET sensitive_topic = ?, sensitive_topic_reason = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+    SET sensitive_topic = ?, sensitive_topic_reason = ?, status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
     WHERE thread_id = ?;
     """
     async with get_db() as db:
@@ -296,7 +296,7 @@ async def update_draft_and_critic(
     """Store generated draft and critic validation results."""
     query = """
     UPDATE opportunities
-    SET proposed_draft = ?, draft_iteration = ?, critic_passed = ?, violation_category = ?, critic_feedback = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+    SET proposed_draft = ?, draft_iteration = ?, critic_passed = ?, violation_category = ?, critic_feedback = ?, status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
     WHERE thread_id = ?;
     """
     async with get_db() as db:
@@ -326,13 +326,13 @@ async def record_human_triage(
     query = """
     INSERT INTO opportunities (
         thread_id, platform, community_id, subreddit, title, status, human_status, final_response_text, rejection_reason, updated_at
-    ) VALUES (?, 'reddit', 'r/general', 'r/general', 'Community Discussion', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ) VALUES (?, 'reddit', 'r/general', 'r/general', 'Community Discussion', ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     ON CONFLICT(thread_id) DO UPDATE SET
         human_status = excluded.human_status,
         final_response_text = excluded.final_response_text,
         rejection_reason = excluded.rejection_reason,
         status = excluded.status,
-        updated_at = CURRENT_TIMESTAMP
+        updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
     RETURNING *;
     """
     async with get_db() as db:

@@ -7,6 +7,7 @@ import { LiveStreamFeed } from '../components/LiveStreamFeed';
 import { Opportunity, IngestedPost } from '../types';
 import { INITIAL_OPPORTUNITIES, INITIAL_LIVE_POSTS } from '../lib/mock-data';
 import { CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react';
+import { formatLocalTime } from '../lib/date-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -107,9 +108,10 @@ export default function MarketerReviewDesk() {
             subreddit: item.subreddit,
             title: item.title,
             author: item.author,
-            timestamp: item.discovered_at ? new Date(item.discovered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent',
+            timestamp: item.discovered_at ? formatLocalTime(item.discovered_at) : 'Recent',
             status: item.status,
             score: item.opportunity_score,
+            permalink: item.permalink,
           }));
           setLivePosts(mappedFeed);
         }
@@ -178,7 +180,7 @@ export default function MarketerReviewDesk() {
             subreddit: opp.subreddit,
             title: opp.title,
             author: opp.author,
-            timestamp: 'Just now',
+            timestamp: formatLocalTime(opp.discovered_at || new Date().toISOString()),
             status: opp.status,
             score: opp.opportunity_score,
           };

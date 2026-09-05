@@ -87,4 +87,6 @@ export interface IngestedPost {
   timestamp: string;
   status: OpportunityStatus;
   score?: number;
+  permalink?: string;
 }
+

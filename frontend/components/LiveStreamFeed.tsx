@@ -43,6 +43,18 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({
     }
   };
 
+  const handleFetchLiveHN = async () => {
+    try {
+      setIsSimulating(true);
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      await fetch(`${API_URL}/api/ingest/hn?limit=2`, { method: 'POST' });
+    } catch (e) {
+      console.error("Failed to fetch live HN:", e);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
   const filteredPosts = posts.filter((p) => {
     if (filter === 'ALL') return true;
     return p.status === filter;
@@ -103,6 +115,16 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({
           >
             + Spam Promo (Drop)
           </button>
+          <button
+            type="button"
+            disabled={isSimulating}
+            onClick={handleFetchLiveHN}
+            className="text-[11px] px-2.5 py-1 rounded bg-orange-950/50 hover:bg-orange-900/60 border border-orange-500/50 text-orange-300 font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            title="Fetch real Ask HN discussions from news.ycombinator.com (100% real live links)"
+          >
+            <Radio className="w-3 h-3 text-orange-400 animate-pulse" />
+            + Live Ask HN (Real Data)
+          </button>
         </div>
       </div>
 
@@ -131,29 +153,53 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({
             No posts matching filter.
           </div>
         ) : (
-          filteredPosts.map((post) => (
-            <div
-              key={post.thread_id}
-              className="p-3 bg-dark-950/60 hover:bg-dark-950 border border-slate-800/80 hover:border-slate-700 rounded-lg transition-all text-xs"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-semibold text-indigo-400 text-[11px]">{post.subreddit}</span>
-                <div className="flex items-center gap-2">
-                  {post.score !== undefined && (
-                    <span className="font-mono text-[10px] text-slate-400">Score: {post.score}</span>
-                  )}
-                  {getStatusBadge(post.status)}
+          filteredPosts.map((post) => {
+            const isHN = post.thread_id.startsWith('hn_') || post.subreddit?.includes('ycombinator');
+            const url = post.permalink && (post.permalink.startsWith('http://') || post.permalink.startsWith('https://'))
+              ? post.permalink
+              : isHN
+              ? `https://news.ycombinator.com/item?id=${post.thread_id.replace('hn_', '')}`
+              : post.permalink?.startsWith('/r/')
+              ? `https://reddit.com${post.permalink}`
+              : `https://www.reddit.com/r/${post.subreddit?.replace(/^r\//, '') || 'SaaS'}/search/?q=${encodeURIComponent(post.title)}`;
+
+            return (
+              <div
+                key={post.thread_id}
+                className="p-3 bg-dark-950/60 hover:bg-dark-950 border border-slate-800/80 hover:border-slate-700 rounded-lg transition-all text-xs group"
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={`font-semibold text-[11px] ${isHN ? 'text-orange-400' : 'text-indigo-400'}`}>
+                    {post.subreddit}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {post.score !== undefined && (
+                      <span className="font-mono text-[10px] text-slate-400">Score: {post.score}</span>
+                    )}
+                    {getStatusBadge(post.status)}
+                  </div>
+                </div>
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-200 font-medium line-clamp-2 leading-snug mb-1.5 hover:text-indigo-300 transition-colors flex items-start justify-between gap-1"
+                  title={isHN ? 'Open on Hacker News' : 'Open on Reddit'}
+                >
+                  <span>{post.title}</span>
+                  <ArrowUpRight className="w-3 h-3 text-slate-500 group-hover:text-indigo-400 shrink-0 mt-0.5" />
+                </a>
+                <div className="flex items-center justify-between text-[10px] text-slate-500">
+                  <span>
+                    {isHN
+                      ? (post.author?.startsWith('hn/') ? post.author : `hn/${post.author}`)
+                      : (post.author?.startsWith('u/') ? post.author : `u/${post.author}`)}
+                  </span>
+                  <span>{post.timestamp}</span>
                 </div>
               </div>
-              <p className="text-slate-200 font-medium line-clamp-2 leading-snug mb-1.5">
-                {post.title}
-              </p>
-              <div className="flex items-center justify-between text-[10px] text-slate-500">
-                <span>u/{post.author}</span>
-                <span>{post.timestamp}</span>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

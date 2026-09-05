@@ -17,9 +17,11 @@ import {
   HelpCircle,
   AlertOctagon,
   Sparkles,
+  Clock,
 } from 'lucide-react';
 import { Opportunity, RejectionReason } from '../types';
 import { ActionPanel } from './ActionPanel';
+import { formatLocalTime } from '../lib/date-utils';
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
@@ -136,10 +138,27 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           </span>
 
           {/* Author */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          <div className="text-xs text-slate-400 flex items-center gap-1">
             <User className="w-3.5 h-3.5 text-slate-500" />
-            <span>u/{opportunity.thread_data.author}</span>
+            <span>
+              {(() => {
+                const a = opportunity.thread_data.author || 'anonymous';
+                const isHN = opportunity.thread_data.thread_id.startsWith('hn_') ||
+                  opportunity.thread_data.subreddit?.includes('ycombinator');
+                if (isHN) return a.startsWith('hn/') ? a : `hn/${a}`;
+                if (a.startsWith('u/')) return a;
+                return `u/${a}`;
+              })()}
+            </span>
           </div>
+
+          {/* Local Timestamp */}
+          {opportunity.created_at && (
+            <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1 bg-slate-850/80 px-2 py-0.5 rounded border border-slate-700/60" title="Ingestion time in your local timezone">
+              <Clock className="w-3 h-3 text-indigo-400" />
+              {formatLocalTime(opportunity.created_at)}
+            </span>
+          )}
 
           {/* Brand Absence / Mention Badge */}
           {analyst.brand_mentioned ? (
@@ -169,27 +188,51 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
 
         {/* Link to Thread */}
         {(() => {
-          const isSimulated =
-            opportunity.thread_data.thread_id?.includes('sim_') ||
-            opportunity.thread_data.thread_id?.startsWith('t3_1h9') ||
-            opportunity.thread_data.permalink?.includes('xyz123') ||
-            opportunity.thread_data.permalink?.includes('1h9');
-          const cleanSub = opportunity.thread_data.subreddit?.replace(/^r\//, '') || 'all';
-          const redditUrl = isSimulated
-            ? `https://www.reddit.com/r/${cleanSub}/search/?q=${encodeURIComponent(opportunity.thread_data.title)}`
-            : opportunity.thread_data.permalink?.startsWith('http')
-            ? opportunity.thread_data.permalink
-            : `https://reddit.com${opportunity.thread_data.permalink}`;
+          const permalink = opportunity.thread_data.permalink || '';
+          const isHN =
+            opportunity.thread_data.thread_id.startsWith('hn_') ||
+            permalink.includes('news.ycombinator.com') ||
+            opportunity.thread_data.subreddit?.includes('ycombinator');
+
+          let platformLabel = 'Reddit';
+          let targetUrl = permalink;
+          let tooltip = 'Open discussion on Reddit';
+
+          if (isHN) {
+            platformLabel = 'Hacker News';
+            tooltip = 'Open live thread on Hacker News';
+            targetUrl = permalink.startsWith('http')
+              ? permalink
+              : `https://news.ycombinator.com/item?id=${opportunity.thread_data.thread_id.replace('hn_', '')}`;
+          } else if (permalink.startsWith('http://') || permalink.startsWith('https://')) {
+            platformLabel = 'Reddit';
+            targetUrl = permalink;
+            tooltip = 'Open original thread on Reddit';
+          } else if (permalink.startsWith('/r/')) {
+            platformLabel = 'Reddit';
+            targetUrl = `https://reddit.com${permalink}`;
+            tooltip = 'Open original thread on Reddit';
+          } else {
+            // Simulated placeholder without a direct link
+            const cleanSub = opportunity.thread_data.subreddit?.replace(/^r\//, '') || 'SaaS';
+            platformLabel = 'Reddit Search';
+            targetUrl = `https://www.reddit.com/r/${cleanSub}/search/?q=${encodeURIComponent(opportunity.thread_data.title)}`;
+            tooltip = 'Search matching discussions on Reddit';
+          }
 
           return (
             <a
-              href={redditUrl}
+              href={targetUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-white p-1 rounded hover:bg-dark-850 transition-colors flex items-center gap-1 text-xs"
-              title={isSimulated ? 'Simulated post: Search matching discussions on Reddit' : 'Open original Reddit thread'}
+              className={`p-1 rounded transition-colors flex items-center gap-1.5 text-xs font-semibold ${
+                isHN
+                  ? 'text-orange-400 hover:text-orange-300 hover:bg-orange-950/40 bg-orange-500/10 border border-orange-500/30 px-2.5 py-1'
+                  : 'text-slate-400 hover:text-white hover:bg-dark-850 px-2 py-1'
+              }`}
+              title={tooltip}
             >
-              <span>{isSimulated ? 'Reddit Search' : 'Reddit'}</span>
+              <span>{platformLabel}</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           );
