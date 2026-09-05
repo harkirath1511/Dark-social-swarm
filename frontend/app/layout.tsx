@@ -2,8 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Dark Social Swarm | Marketer Review Desk',
-  description: 'AI-driven conversation intelligence and opportunity triage system with strict human-in-the-loop controls.',
+  title: 'Dark Social Swarm | Community signal intelligence',
+  description: 'Find qualified community conversations, evaluate risk, and keep a human in control of every reply.',
 };
 
 export default function RootLayout({

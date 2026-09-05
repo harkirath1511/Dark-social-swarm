@@ -1,0 +1,5 @@
+import { Search, Send, ShieldCheck, Sparkles } from 'lucide-react';
+
+const steps = [{ icon: Search, number: '01', title: 'Discover', text: 'Monitor the communities that shape your category.' }, { icon: Sparkles, number: '02', title: 'Qualify', text: 'Extract pain, intent, and evidence from every signal.' }, { icon: ShieldCheck, number: '03', title: 'Review', text: 'Keep brand safety and a human decision in the loop.' }, { icon: Send, number: '04', title: 'Engage', text: 'Send a useful response only when it earns its place.' }];
+
+export function Workflow() { return <section className="ds-workflow" id="workflow" aria-labelledby="workflow-heading"><div className="ds-section-heading"><p className="ds-eyebrow">Built for thoughtful outreach</p><h2 id="workflow-heading">A calmer way to act on social signals.</h2></div><ol>{steps.map(({ icon: Icon, number, title, text }) => <li key={number}><span className="ds-step-number">{number}</span><Icon aria-hidden="true" size={22} /><h3>{title}</h3><p>{text}</p></li>)}</ol></section>; }

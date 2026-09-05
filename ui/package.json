@@ -1,0 +1,16 @@
+{
+  "name": "@dark-social/ui",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles/tokens.css": "./src/styles/tokens.css"
+  },
+  "peerDependencies": {
+    "d3": "^7.9.0",
+    "lucide-react": "^0.453.0",
+    "motion": "^13.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import '@dark-social/ui/styles/tokens.css';
 
 :root {
   --background: #07090e;
