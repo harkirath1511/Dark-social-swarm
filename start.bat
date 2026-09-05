@@ -16,14 +16,15 @@ if not exist "backend\.env" (
 )
 
 :: 2. Find Python
-set "PYTHON_EXE=.venv\Scripts\python.exe"
-if not exist "%PYTHON_EXE%" (
+if exist "%~dp0.venv\Scripts\python.exe" (
+    set "PYTHON_EXE=%~dp0.venv\Scripts\python.exe"
+) else (
     set "PYTHON_EXE=python"
 )
 
 :: 3. Start Backend in new window
 echo Starting Backend on http://localhost:8000...
-start "Dark Social Swarm - Backend" cmd /k "cd backend && ..\%PYTHON_EXE% -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+start "Dark Social Swarm - Backend" cmd /k "cd backend && "%PYTHON_EXE%" -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
 :: 4. Start Frontend in new window
 echo Starting Frontend on http://localhost:3000...

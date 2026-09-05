@@ -12,8 +12,13 @@ import {
   ChevronUp,
   CheckCircle2,
   Copy,
+  Tag,
+  Gauge,
+  HelpCircle,
+  AlertOctagon,
+  Sparkles,
 } from 'lucide-react';
-import { Opportunity } from '../types';
+import { Opportunity, RejectionReason } from '../types';
 import { ActionPanel } from './ActionPanel';
 
 interface OpportunityCardProps {
@@ -22,7 +27,7 @@ interface OpportunityCardProps {
     threadId: string,
     action: 'approved' | 'edited' | 'rejected',
     text?: string,
-    rejectionReason?: string
+    rejectionReason?: RejectionReason
   ) => Promise<void>;
 }
 
@@ -31,13 +36,16 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   onActionComplete,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedDraft, setEditedDraft] = useState(opportunity.draft_content);
+  const [editedDraft, setEditedDraft] = useState(opportunity.draft_content || '');
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [isResolved, setIsResolved] = useState(false);
   const [resolvedStatus, setResolvedStatus] = useState<string | null>(null);
   const [copiedToast, setCopiedToast] = useState(false);
 
-  const score = opportunity.strategist_output.opportunity_score;
+  const score = opportunity.strategist_output.opportunity_score ?? 75;
+  const strat = opportunity.strategist_output;
+  const analyst = opportunity.analyst_output;
+  const critic = opportunity.critic_output;
 
   const getScoreBarColor = (val: number) => {
     if (val >= 70) return 'bg-emerald-500';
@@ -51,20 +59,8 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
     return 'text-red-400';
   };
 
-  const getIntentBadge = (intent: string) => {
-    switch (intent.toLowerCase()) {
-      case 'high':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-      case 'medium':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-      default:
-        return 'bg-slate-800 text-slate-400 border-slate-700';
-    }
-  };
-
   // Button 1: Approve & Copy
   const handleApproveAndCopy = async () => {
-    // Copy drafted text to clipboard
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(editedDraft);
@@ -86,14 +82,14 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
     await onActionComplete(opportunity.thread_data.thread_id, 'edited', editedDraft);
     setIsEditing(false);
     setIsResolved(true);
-    setResolvedStatus('EDITED & APPROVED');
+    setResolvedStatus('EDITED & AUTHORIZED');
   };
 
   // Button 3: Reject / Discard
-  const handleReject = async (reason: string) => {
+  const handleReject = async (reason: RejectionReason) => {
     await onActionComplete(opportunity.thread_data.thread_id, 'rejected', undefined, reason);
     setIsResolved(true);
-    setResolvedStatus(`REJECTED: ${reason.toUpperCase()}`);
+    setResolvedStatus(`REJECTED: ${reason.replace('_', ' ').toUpperCase()}`);
   };
 
   if (isResolved) {
@@ -120,36 +116,84 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         </div>
       )}
 
-      {/* 1. Source Context Meta Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2.5">
+      {/* Sensitive Topic Alert Banner */}
+      {opportunity.sensitive_topic && (
+        <div className="mb-4 p-3 rounded-xl bg-red-950/40 border border-red-800/60 flex items-start gap-2.5 text-xs text-red-200">
+          <AlertOctagon className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <strong className="text-red-300 font-semibold block">Sensitive Topic Gate Triggered (Drafting Bypassed)</strong>
+            <span>{opportunity.sensitive_topic_reason || 'Medical, legal, or crisis subject detected. Handled strictly via manual review.'}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 1. Header & Source Meta Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Subreddit / Community Pill */}
           <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
-            {opportunity.thread_data.subreddit}
+            {opportunity.thread_data.community_id || opportunity.thread_data.subreddit}
           </span>
+
+          {/* Author */}
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             <User className="w-3.5 h-3.5 text-slate-500" />
             <span>u/{opportunity.thread_data.author}</span>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3">
-          {/* Buying Intent Pill */}
-          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border uppercase tracking-wider ${getIntentBadge(opportunity.analyst_output.buying_intent)}`}>
-            {opportunity.analyst_output.buying_intent} Intent
+          {/* Brand Absence / Mention Badge */}
+          {analyst.brand_mentioned ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 border border-purple-500/30 text-purple-400">
+              <Tag className="w-3 h-3" />
+              Brand Mentioned: {analyst.mentioned_brands?.join(', ') || 'Yes'}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+              <Tag className="w-3 h-3" />
+              Brand Mentioned: None (Unbranded)
+            </span>
+          )}
+
+          {/* Intent Badge */}
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 uppercase tracking-wider">
+            {analyst.buying_intent.replace('_', ' ')}
           </span>
 
-          {/* External Link to Thread */}
-          <a
-            href={opportunity.thread_data.permalink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-slate-400 hover:text-white p-1 rounded hover:bg-dark-850 transition-colors flex items-center gap-1 text-xs"
-            title="Open original Reddit thread"
-          >
-            <span>Reddit</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          {/* Sentiment Badge */}
+          {analyst.sentiment && (
+            <span className="px-2 py-0.5 rounded-md text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
+              {analyst.sentiment}
+            </span>
+          )}
         </div>
+
+        {/* Link to Thread */}
+        {(() => {
+          const isSimulated =
+            opportunity.thread_data.thread_id?.includes('sim_') ||
+            opportunity.thread_data.thread_id?.startsWith('t3_1h9') ||
+            opportunity.thread_data.permalink?.includes('xyz123') ||
+            opportunity.thread_data.permalink?.includes('1h9');
+          const cleanSub = opportunity.thread_data.subreddit?.replace(/^r\//, '') || 'all';
+          const redditUrl = isSimulated
+            ? `https://www.reddit.com/r/${cleanSub}/search/?q=${encodeURIComponent(opportunity.thread_data.title)}`
+            : opportunity.thread_data.permalink?.startsWith('http')
+            ? opportunity.thread_data.permalink
+            : `https://reddit.com${opportunity.thread_data.permalink}`;
+
+          return (
+            <a
+              href={redditUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 hover:text-white p-1 rounded hover:bg-dark-850 transition-colors flex items-center gap-1 text-xs"
+              title={isSimulated ? 'Simulated post: Search matching discussions on Reddit' : 'Open original Reddit thread'}
+            >
+              <span>{isSimulated ? 'Reddit Search' : 'Reddit'}</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          );
+        })()}
       </div>
 
       {/* Thread Title */}
@@ -165,88 +209,152 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 transition-colors mb-1"
         >
           {showFullPreview ? <ChevronUp className="w-3.5 h-3.5 text-indigo-400" /> : <ChevronDown className="w-3.5 h-3.5 text-indigo-400" />}
-          <span>{showFullPreview ? 'Hide Conversation Preview' : 'Show Full Conversation Preview'}</span>
+          <span>{showFullPreview ? 'Hide Raw Post Text' : 'Show Raw Post Text'}</span>
         </button>
 
         {showFullPreview && (
           <div className="p-3.5 rounded-lg bg-dark-950/90 border border-slate-800 text-xs text-slate-300 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-line mt-1">
-            {opportunity.thread_data.body || '(No post body content provided by author.)'}
+            {opportunity.thread_data.body || '(No self-text body content.)'}
           </div>
         )}
       </div>
 
-      {/* 2. Highlighted Verbatim Evidence Quote */}
+      {/* 2. Highlighted Verbatim Evidence (Multi-Quote Support) */}
       <div className="bg-gradient-to-r from-dark-850 to-dark-850/50 border-l-4 border-amber-500 rounded-r-xl p-4 mb-4 text-xs sm:text-sm text-slate-200 relative shadow-inner">
-        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-1.5">
+        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-2">
           <Quote className="w-3.5 h-3.5" />
-          Verbatim Anchor Evidence (Traceability Non-Negotiable)
+          Verbatim Anchor Evidence ({analyst.evidence && analyst.evidence.length > 1 ? `${analyst.evidence.length} Quotes` : 'Anchor Quote'})
         </div>
-        <p className="italic font-serif leading-relaxed text-slate-100">
-          "{opportunity.analyst_output.evidence_quote}"
-        </p>
+        {analyst.evidence && analyst.evidence.length > 1 ? (
+          <ul className="list-disc list-inside space-y-1 text-slate-100 italic font-serif">
+            {analyst.evidence.map((quote, idx) => (
+              <li key={idx}>"{quote}"</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="italic font-serif leading-relaxed text-slate-100">
+            "{analyst.evidence_quote}"
+          </p>
+        )}
       </div>
 
-      {/* 3. Extracted Problem & Strategist Scoring Meter */}
+      {/* 3. Problem, Pain Point & Community Context Panel */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4 text-xs">
-        {/* Extracted Problem (7 cols) */}
-        <div className="md:col-span-7 p-3.5 bg-dark-950/60 border border-slate-800/80 rounded-xl">
-          <span className="font-semibold text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">
-            Extracted Core Problem
-          </span>
-          <p className="text-slate-200 leading-snug">{opportunity.analyst_output.core_problem}</p>
+        {/* Extracted Problem & Pain Point (7 cols) */}
+        <div className="md:col-span-7 p-3.5 bg-dark-950/70 border border-slate-800/80 rounded-xl space-y-2">
+          <div>
+            <span className="font-semibold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">
+              Extracted Core Problem
+            </span>
+            <p className="text-slate-200 leading-snug">{analyst.core_problem}</p>
+          </div>
+
+          {analyst.pain_point && (
+            <div>
+              <span className="font-semibold text-slate-400 block mb-0.5 uppercase tracking-wider text-[10px]">
+                Underlying Operational Friction
+              </span>
+              <p className="text-slate-300 leading-snug">{analyst.pain_point}</p>
+            </div>
+          )}
+
+          {analyst.community_context && (
+            <div className="pt-1.5 border-t border-slate-800/60">
+              <span className="font-semibold text-indigo-300 block mb-0.5 uppercase tracking-wider text-[10px]">
+                Community Norms & Scrutiny
+              </span>
+              <p className="text-slate-400 text-[11px] leading-snug">{analyst.community_context}</p>
+            </div>
+          )}
         </div>
 
-        {/* Strategist Visual Progress Meter (5 cols) */}
-        <div className="md:col-span-5 p-3.5 bg-dark-950/60 border border-slate-800/80 rounded-xl flex flex-col justify-between">
+        {/* 6D Composite Opportunity Score & Rationale (5 cols) */}
+        <div className="md:col-span-5 p-3.5 bg-dark-950/70 border border-slate-800/80 rounded-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
-                Strategist Score
+              <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px] flex items-center gap-1">
+                <Gauge className="w-3.5 h-3.5 text-indigo-400" />
+                Opportunity Score
               </span>
-              <span className={`font-mono font-bold text-sm ${getScoreTextColor(score)}`}>
+              <span className={`font-mono font-bold text-base ${getScoreTextColor(score)}`}>
                 {score} / 100
               </span>
             </div>
 
             {/* Visual Progress Bar */}
-            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden mb-2">
+            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden mb-2">
               <div
                 className={`h-full transition-all duration-500 rounded-full ${getScoreBarColor(score)}`}
                 style={{ width: `${Math.min(score, 100)}%` }}
               />
             </div>
+
+            {/* Confidence pill */}
+            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+              <span>Analyst Conf: <strong>{Math.round((analyst.analyst_confidence ?? 0.85) * 100)}%</strong></span>
+              <span>Strategist Conf: <strong>{Math.round((strat.strategist_confidence ?? 0.85) * 100)}%</strong></span>
+            </div>
           </div>
 
-          <p className="text-[11px] text-slate-400 line-clamp-2 leading-tight">
-            {opportunity.strategist_output.reasoning}
+          <p className="text-[11px] text-slate-400 line-clamp-3 leading-tight pt-2 border-t border-slate-800/60">
+            {strat.reasoning}
           </p>
         </div>
       </div>
 
-      {/* 4. Compliance Status Badge */}
+      {/* 4. 6-Dimensional Breakdown Badges */}
+      <div className="p-3 bg-dark-950/50 border border-slate-800/70 rounded-xl mb-4 text-xs">
+        <span className="font-semibold text-slate-400 block mb-2 uppercase tracking-wider text-[10px]">
+          6D Diagnostic Rubric
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+          <div className="p-2 rounded-lg bg-dark-900 border border-slate-800">
+            <span className="text-[10px] text-slate-400 block">Relevance</span>
+            <span className="font-mono font-bold text-sm text-indigo-400">{strat.relevance_score ?? 90}/100</span>
+          </div>
+          <div className="p-2 rounded-lg bg-dark-900 border border-slate-800">
+            <span className="text-[10px] text-slate-400 block">Intent Strength</span>
+            <span className="font-mono font-bold text-sm text-cyan-400">{strat.intent_strength_score ?? 85}/100</span>
+          </div>
+          <div className="p-2 rounded-lg bg-dark-900 border border-slate-800">
+            <span className="text-[10px] text-slate-400 block">Community Fit</span>
+            <span className="font-mono font-bold text-sm text-emerald-400">{strat.community_fit_score ?? 80}/100</span>
+          </div>
+          <div className="p-2 rounded-lg bg-dark-900 border border-slate-800">
+            <span className="text-[10px] text-slate-400 block">Credibility</span>
+            <span className="font-mono font-bold text-sm text-amber-400">{strat.credibility_score ?? 85}/100</span>
+          </div>
+          <div className="p-2 rounded-lg bg-dark-900 border border-slate-800">
+            <span className="text-[10px] text-slate-400 block">Backlash Risk</span>
+            <span className="font-mono font-bold text-sm text-red-400">{strat.engagement_risk_score ?? 20}/100</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Compliance Status Badge */}
       <div className="p-3.5 bg-dark-950/80 border border-slate-800 rounded-xl mb-4 text-xs flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {opportunity.critic_output.critic_passed ? (
+          {critic.critic_passed ? (
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
           ) : (
             <AlertTriangle className="w-4 h-4 text-amber-400" />
           )}
           <span className="font-medium text-slate-300">
             Compliance Audit Status:{' '}
-            <strong className={opportunity.critic_output.critic_passed ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
-              {opportunity.critic_output.critic_passed ? 'PASSED (Anti-Astroturfing & Zero-Plug)' : `FLAGGED WITH NOTES (${opportunity.critic_output.violation_category})`}
+            <strong className={critic.critic_passed ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
+              {critic.critic_passed ? '✓ PASSED (Anti-Astroturfing & Zero-Plug Enforced)' : `FLAGGED: ${critic.violation_category?.toUpperCase() || 'NOTES'}`}
             </strong>
           </span>
         </div>
 
-        {opportunity.critic_output.critic_feedback && (
+        {critic.critic_feedback && (
           <span className="text-[11px] text-slate-400 italic block w-full mt-1 pl-6">
-            Note: {opportunity.critic_output.critic_feedback}
+            Adversarial Audit Note: {critic.critic_feedback}
           </span>
         )}
       </div>
 
-      {/* 5. Editable Text Area pre-filled with proposed_draft */}
+      {/* 6. Editable Text Area pre-filled with proposed_draft */}
       <div className="mt-4">
         <div className="flex items-center justify-between mb-2 text-xs font-semibold text-slate-300">
           <div className="flex items-center gap-1.5">
@@ -261,11 +369,11 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
           onChange={(e) => setEditedDraft(e.target.value)}
           rows={5}
           className="w-full bg-dark-950 border border-slate-800 hover:border-slate-700 focus:border-indigo-500 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 font-sans focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-y leading-relaxed transition-all"
-          placeholder="Refine proposed response..."
+          placeholder={opportunity.sensitive_topic ? 'Drafting bypassed due to sensitive topic. Marketer may compose manual response...' : 'Refine proposed response...'}
         />
       </div>
 
-      {/* 6. Three Action Buttons Panel */}
+      {/* 7. Action Buttons Panel */}
       <ActionPanel
         opportunityId={opportunity.thread_data.thread_id}
         isEditing={isEditing}

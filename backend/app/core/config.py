@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = Field(default="", description="Groq API Key (Free high-speed Llama-3)")
     DEFAULT_LLM_MODEL: str = "gpt-4o-mini"
     REASONING_LLM_MODEL: str = "gpt-4o"
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
     LLM_PROVIDER: str = "auto"  # "auto", "groq", "openai", "anthropic"
 
     # Reddit Ingestion (PRAW)

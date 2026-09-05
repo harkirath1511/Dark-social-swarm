@@ -250,6 +250,7 @@ async def resume_opportunity_alias(
 
 
 @router.post("/ingest/simulate")
+@router.post("/ingest/custom")
 async def simulate_ingest_thread(
     req: SimulateIngestRequest,
     graph=Depends(get_graph),
